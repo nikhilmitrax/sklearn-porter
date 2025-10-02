@@ -1,0 +1,34 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+
+{{ method }}
+
+int main(int argc, const char * argv[]) {
+    float features[argc - 1];
+    int i;
+    for (i = 1; i < argc; i++) {
+        features[i - 1] = atof(argv[i]);
+    }
+
+    double probabilities[{{ n_classes }}];
+    predict_proba(features, probabilities);
+    int prediction = find_max(probabilities, {{ n_classes }});
+
+    {% if is_test or to_json %}
+    printf("{\"predict\": %d, \"predict_proba\": [", prediction);
+    for (i = 0; i < {{ n_classes }}; i++) {
+        printf("%.6f", probabilities[i]);
+        if (i < {{ n_classes }} - 1) {
+            printf(",");
+        }
+    }
+    printf("]}");
+    {% else %}
+    printf("Predicted class: #%d\n", prediction);
+    for (i = 0; i < {{ n_classes }}; i++) {
+        printf("Probability of class #%d: %.6f\n", i, probabilities[i]);
+    }
+    {% endif %}
+    return 0;
+}

@@ -1,0 +1,33 @@
+{{ methods }}
+
+static int find_max(const double *nums, int length) {
+    int idx = 0;
+    for (int i = 1; i < length; i++) {
+        idx = nums[i] > nums[idx] ? i : idx;
+    }
+    return idx;
+}
+
+static void compute_proba(const float features[], double *output) {
+    const int n_classes = {{ n_classes }};
+    const int n_estimators = {{ n_estimators }};
+    int i;
+    for (i = 0; i < n_classes; i++) {
+        output[i] = 0.0;
+    }
+    double temp[{{ n_classes }}];
+    {{ method_calls }}
+    for (i = 0; i < n_classes; i++) {
+        output[i] /= n_estimators;
+    }
+}
+
+int {{ method_name }}(const float features[]) {
+    double probabilities[{{ n_classes }}];
+    compute_proba(features, probabilities);
+    return find_max(probabilities, {{ n_classes }});
+}
+
+void predict_proba(const float features[], double *result) {
+    compute_proba(features, result);
+}

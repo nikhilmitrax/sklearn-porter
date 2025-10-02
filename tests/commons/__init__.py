@@ -3,12 +3,11 @@ from os import environ
 from pathlib import Path
 from typing import List
 
-from sklearn.ensemble.forest import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.ensemble.weight_boosting import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, RandomForestClassifier
 from sklearn.naive_bayes import BernoulliNB, GaussianNB
-from sklearn.neighbors.classification import KNeighborsClassifier
-from sklearn.svm import SVC, LinearSVC, NuSVC
-from sklearn.tree.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import LinearSVC, NuSVC, SVC
+from sklearn.tree import DecisionTreeClassifier
 
 import sklearn
 from sklearn.datasets import load_digits, load_iris
@@ -48,7 +47,7 @@ def get_classifiers() -> List[Candidate]:
         BernoulliNB,
     ]
     try:
-        from sklearn.neural_network.multilayer_perceptron import MLPClassifier
+        from sklearn.neural_network import MLPClassifier
     except ImportError:
         pass
     else:
@@ -61,7 +60,7 @@ def get_regressors() -> List[Candidate]:
     """Get a list of available regressors."""
     _regressors = []
     try:
-        from sklearn.neural_network.multilayer_perceptron import MLPRegressor
+        from sklearn.neural_network import MLPRegressor
     except ImportError:
         pass
     else:
