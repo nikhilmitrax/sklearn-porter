@@ -15,13 +15,12 @@ from joblib import dump
 from sklearn import preprocessing
 from sklearn.base import BaseEstimator
 from sklearn.datasets import load_iris
-from sklearn.ensemble.forest import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.ensemble.weight_boosting import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, ExtraTreesClassifier, RandomForestClassifier
 from sklearn.linear_model import SGDClassifier
 from sklearn.naive_bayes import BernoulliNB, GaussianNB
-from sklearn.neighbors.classification import KNeighborsClassifier
-from sklearn.svm import SVC, LinearSVC, NuSVC
-from sklearn.tree.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import LinearSVC, NuSVC, SVC
+from sklearn.tree import DecisionTreeClassifier
 
 # sklearn-porter
 from sklearn_porter import exceptions as exception
@@ -63,12 +62,13 @@ def joblib_model_path() -> Path:
 
 
 @pytest.fixture(scope='session')
-def tmp_root_dir(worker_id) -> Path:
+def tmp_root_dir(pytestconfig) -> Path:
     """Fixture to get the path to the temporary directory."""
 
     # Delete the previous generated temporary directory:
     tmp_dir = ROOT_DIR / 'tmp'
-    if worker_id is 'master':
+    worker_id = getattr(pytestconfig, 'workerinput', {}).get('workerid', 'master')
+    if worker_id == 'master':
         if tmp_dir.exists():
             shutil.rmtree(str(tmp_dir.resolve()), ignore_errors=True)
     tmp_dir.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,19 @@
+{{ methods }}
+
+static int find_max(const double *nums, int length) {
+    int idx = 0;
+    for (int i = 1; i < length; i++) {
+        idx = nums[i] > nums[idx] ? i : idx;
+    }
+    return idx;
+}
+
+int {{ method_name }}(const float features[]) {
+    double probabilities[{{ n_classes }}];
+    tree_0(features, probabilities);
+    return find_max(probabilities, {{ n_classes }});
+}
+
+void predict_proba(const float features[], double *result) {
+    tree_0(features, result);
+}

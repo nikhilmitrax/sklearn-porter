@@ -3,12 +3,12 @@ from json import dumps, encoder
 from textwrap import indent
 from typing import Callable, Dict, Tuple, Union
 
+import numpy as np
 from loguru import logger as L
 
 # scikit-learn
 from jinja2 import Environment
-from sklearn.ensemble.forest import \
-    RandomForestClassifier as RandomForestClassifierClass
+from sklearn.ensemble import RandomForestClassifier as RandomForestClassifierClass
 from sklearn.tree import DecisionTreeClassifier
 
 # sklearn-porter
@@ -28,6 +28,9 @@ class RandomForestClassifier(EstimatorBase, EstimatorApiABC):
     DEFAULT_METHOD = enum.Method.PREDICT
 
     SUPPORT = {
+        enum.Language.C: {
+            enum.Template.COMBINED: enum.ALL_METHODS,
+        },
         enum.Language.GO: {
             enum.Template.EXPORTED: enum.ALL_METHODS,
         },
@@ -53,28 +56,33 @@ class RandomForestClassifier(EstimatorBase, EstimatorApiABC):
         L.info('Create specific estimator `%s`.', self.estimator_name)
         est = self.estimator  # alias
 
-        # Check type of base estimators:
-        if not isinstance(est.base_estimator, DecisionTreeClassifier):
-            msg = 'The used base estimator `{}` is not supported yet.'
-            msg = msg.format(est.base_estimator.__class__.__qualname__)
-            raise exception.NotSupportedYetError(msg)
-
-        # Check number of base estimators:
-        if not estimator.n_estimators > 0:
+        # Ensure the forest has been fitted and uses supported base estimators:
+        if not hasattr(est, 'estimators_') or not est.estimators_:
             raise exception.NotFittedEstimatorError(self.estimator_name)
 
-        self.estimators = [
-            est.estimators_[idx] for idx in range(est.n_estimators)
-        ]
+        first_estimator = est.estimators_[0]
+        if not isinstance(first_estimator, DecisionTreeClassifier):
+            msg = 'The used base estimator `{}` is not supported yet.'
+            msg = msg.format(first_estimator.__class__.__qualname__)
+            raise exception.NotSupportedYetError(msg)
+
+        # Cache estimator attributes:
+        self.estimators = list(est.estimators_)
         self.n_estimators = len(self.estimators)
-        self.n_features = est.estimators_[0].n_features_
+        self.n_features = getattr(first_estimator, 'n_features_in_', None)
+        if self.n_features is None:
+            self.n_features = getattr(first_estimator, 'n_features_', None)
+        if self.n_features is None and hasattr(first_estimator, 'tree_'):
+            self.n_features = getattr(first_estimator.tree_, 'n_features', None)
+        if self.n_features is None:
+            raise exception.NotSupportedYetError('Unable to determine number of input features.')
         self.n_classes = est.n_classes_
 
         # Extract and save meta information:
         self.meta_info = dict(
             n_estimators=est.n_estimators,
             n_classes=est.n_classes_,
-            n_features=est.estimators_[0].n_features_,
+            n_features=self.n_features,
         )
         L.info('Meta info (keys): {}'.format(self.meta_info.keys()))
         L.opt(lazy=True).debug('Meta info: {}'.format(self.meta_info))
@@ -82,13 +90,17 @@ class RandomForestClassifier(EstimatorBase, EstimatorApiABC):
         # Extract and save model data:
         self.model_data['estimators'] = []
         for e in est.estimators_:
+            tree = e.tree_
+            weights = tree.weighted_n_node_samples
+            values = tree.value[:, 0, :]
+            class_counts = np.rint(values * weights[:, None]).astype(int).tolist()
             self.model_data['estimators'].append(
                 dict(
-                    lefts=e.tree_.children_left.tolist(),
-                    rights=e.tree_.children_right.tolist(),
-                    thresholds=e.tree_.threshold.tolist(),
-                    classes=[c[0] for c in e.tree_.value.astype(int).tolist()],
-                    indices=e.tree_.feature.tolist()
+                    lefts=tree.children_left.tolist(),
+                    rights=tree.children_right.tolist(),
+                    thresholds=tree.threshold.tolist(),
+                    classes=class_counts,
+                    indices=tree.feature.tolist()
                 )
             )
         L.info('Model data (keys): {}'.format(self.model_data.keys()))
@@ -132,6 +144,7 @@ class RandomForestClassifier(EstimatorBase, EstimatorApiABC):
             to_json=to_json,
         ))
         plas.update(self.meta_info)
+        plas.setdefault('method_name', self.DEFAULT_METHOD.value)
 
         # Templates:
         tpls = self._load_templates(language.value.KEY)
